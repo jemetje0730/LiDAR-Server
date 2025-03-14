@@ -25,12 +25,17 @@ buffer = bytearray()
 
 def setup_socket(port):
     """ 멀티캐스트 소켓을 설정하고 특정 포트를 리스닝 """
+    # 1Pv4 주소 사용, UDP 소켓 사용, UDP 프로토콜 사용 = UDP 소켓 생성
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+    # 소켓 옵션 종료 후 같은 포트 바로 재사용용
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    # 수신 버퍼 크기 설정
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 2**24)
     sock.bind(("", port))
     
+    # GRP 랑 IP 4바이트씩 2개 바이너리로 변환 후 패킹
     mreq = struct.pack("=4s4s", socket.inet_aton(MCAST_GRP), socket.inet_aton(INTERFACE_IP))
+    # IP_ADD_MEMBERSHIP 옵션 mreq로 설정
     sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
     
     return sock
