@@ -23,7 +23,6 @@ CLOUD_POINT_API_URL = "http://127.0.0.1:18290/v1/lidar/cloud-point?index=0"
 
 # ✅ WebSocket 클라이언트 목록 저장
 connected_clients = []
-last_cloud_data = []
 
 # ✅ 요청 데이터 모델
 class DeviceConfig(BaseModel):
@@ -72,11 +71,11 @@ def fetch_cloud_point_data():
         ]
 
         # 변경된 데이터만 반영 (이전 데이터 비교)
-        global last_cloud_data
-        if last_cloud_data == new_data:
+        global connected_clients
+        if connected_clients == new_data:
             return None  # 변경 사항 없으면 전송 안 함
 
-        last_cloud_data = new_data
+        connected_clients = new_data
         return {"latest_cloud_point_xyz_points": new_data}
 
     except req.exceptions.RequestException as e:
