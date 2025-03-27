@@ -1,5 +1,4 @@
 import asyncio
-import requests as req
 import uvicorn
 import threading
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
@@ -62,9 +61,6 @@ async def websocket_lidar(websocket: WebSocket):
             await asyncio.sleep(0.1)  # ✅ 실시간 갱신 속도 조절
     except WebSocketDisconnect:
         print("❌ WebSocket 클라이언트 연결 종료됨")
-
-
-
 
 @app.get("/lidar_data")
 def get_lidar_data():

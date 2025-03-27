@@ -33,21 +33,6 @@ def setup_socket(port):
     sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
     return sock
 
-def detect_channel_count(data_bytes):
-    """ 9번째 인덱스를 확인하여 채널 개수를 감지 """
-    global detected_channels
-
-    if len(data_bytes) > 9:
-        channel_id = data_bytes[9]  # 9번째 바이트 값 확인
-        if channel_id in {0, 1, 2, 3}:
-            channel_history.append(channel_id)
-
-    if len(channel_history) >= 10:
-        unique_channels = set(channel_history)
-        detected_channels = len(unique_channels)
-
-    print(f"🔍 안정적인 채널 감지: {detected_channels}")
-
 def bytes_to_distance(byte_pair):
     """ 2바이트 데이터를 거리값으로 변환 """
     return byte_pair[0] + byte_pair[1] * 0.01
