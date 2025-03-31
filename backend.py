@@ -6,6 +6,7 @@ from fastapi.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import listener
+import socket  
 
 app = FastAPI()
 
@@ -17,6 +18,29 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# XOR 체크섬
+def xor_checksum(data: bytes) -> int:
+    """ XOR 체크섬 계산 """
+    result = 0
+    for b in data:
+        result ^= b
+    return result
+
+# 패킷 구성 함수
+def make_packet(output_channel: int) -> bytes:
+    header = b'\xfa'
+    productline = b'\x06'
+    device_id = b'\xd0'
+    command = b'\xcf\x30'
+    datalength = b'\x00\x01'
+    data_byte = output_channel.to_bytes(1, byteorder='big')
+    payload = header + productline + device_id + command + datalength + data_byte
+    checksum = xor_checksum(payload).to_bytes(1, byteorder='big')
+    return payload + checksum
+
+class ChannelRequest(BaseModel):
+    output_channel: int
 
 # ✅ WebSocket 연결을 관리할 리스트
 active_connections = set()
@@ -44,6 +68,30 @@ def connect_device(config: LidarConfig):
         return {"success": False, "message": "❌ LiDAR 리스너 실행 실패"}
 
     return {"success": True, "message": f"✅ LiDAR 리스너 실행 완료: {config.ip}:{config.port}"}
+
+@app.post("/set_output_channel")
+async def set_output_channel(data: ChannelRequest):
+    try:
+        packet = make_packet(data.output_channel)
+        print(f"✅ 패킷 전송: {packet.hex()}")  # ✅ 패킷 전송 로그 추가
+
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            sock.bind(("192.168.0.100", 5000))
+            sock.settimeout(3)
+
+            sock.sendto(packet,("192.168.0.200", 5000))  # ✅ 패킷 전송
+            response,_= sock.recvfrom(1024)  # ✅ 응답 대기
+
+            print(f"✅ 응답 수신: {response.hex()}")  # ✅ 응답 로그 추가
+            return {
+                "sent_packet": packet.hex(),
+                "received_response": response.hex()
+            }
+    
+    except Exception as e:
+        return ({"error": str(e)})
+
 
 @app.websocket("/ws/lidar")
 async def websocket_lidar(websocket: WebSocket):
