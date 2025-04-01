@@ -39,7 +39,7 @@ def send_existing_data_request():
 
     MULTICAST_GROUP = "224.0.0.5"
     LOCAL_IP = "192.168.0.100"  # 로컬 인터페이스 IP (변경 가능)
-    UDP_PORT = 5000
+    UDP_PORT = 5000  # 항상 5000 포트 사용
 
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -51,10 +51,11 @@ def send_existing_data_request():
         mreq = struct.pack("4s4s", socket.inet_aton(MULTICAST_GROUP), socket.inet_aton(LOCAL_IP))
         sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
 
-        # ED 패킷 전송 (Unicast)
+        # ✅ ED 패킷 전송 (항상 5000 포트에서 전송)
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as send_sock:
+            send_sock.bind((LOCAL_IP, UDP_PORT))  # ✅ 송신 포트 고정
             send_sock.sendto(ed_packet, ("192.168.0.200", UDP_PORT))
-            print(f"📤 ED Packet Sent: {ed_packet.hex()}")
+            print(f"📤 ED Packet Sent from {LOCAL_IP}:{UDP_PORT} -> 192.168.0.200:{UDP_PORT}")
 
         try:
             response, _ = sock.recvfrom(2048)
@@ -65,11 +66,12 @@ def send_existing_data_request():
 
     return None
 
+
 def send_packet(payload: bytes, expected_cmd: bytes):
     print(f"📤 Sending packet: {payload.hex()}")
 
-    LOCAL_IP = "192.168.0.100"
-    UDP_PORT = 5000
+    LOCAL_IP = "192.168.0.100"  # 본인의 IP (변경 가능)
+    UDP_PORT = 5000  # 항상 5000 포트 사용
     MULTICAST_GROUP = "224.0.0.5"
 
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
@@ -82,14 +84,15 @@ def send_packet(payload: bytes, expected_cmd: bytes):
         # ✅ 모든 네트워크 인터페이스에서 수신 가능하도록 바인딩
         sock.bind(("0.0.0.0", UDP_PORT))
 
-        # ✅ 멀티캐스트 그룹 가입 (만약 필요하면)
+        # ✅ 멀티캐스트 그룹 가입
         mreq = struct.pack("4s4s", socket.inet_aton(MULTICAST_GROUP), socket.inet_aton(LOCAL_IP))
         sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
 
-        # ✅ 패킷 전송 (Unicast)
+        # ✅ 패킷 전송 (항상 5000 포트에서 전송)
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as send_sock:
+            send_sock.bind((LOCAL_IP, UDP_PORT))  # ✅ 송신 포트 고정
             send_sock.sendto(payload, ("192.168.0.200", UDP_PORT))
-            print(f"📤 Packet Sent: {payload.hex()}")
+            print(f"📤 Packet Sent from {LOCAL_IP}:{UDP_PORT} -> 192.168.0.200:{UDP_PORT}")
 
         try:
             response, _ = sock.recvfrom(2048)
@@ -103,6 +106,7 @@ def send_packet(payload: bytes, expected_cmd: bytes):
         except socket.timeout:
             print("❌ Response timeout")
             return {"error": "Response timeout"}
+
 
 class ChannelRequest(BaseModel):
     output_channel: int
