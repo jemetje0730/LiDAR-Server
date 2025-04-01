@@ -5,13 +5,13 @@ import struct
 import threading
 import time
 
-# ✅ 멀티캐스트 설정
+# 멀티캐스트 설정
 MCAST_GRP = "224.0.0.5"
 INTERFACE_IP = "192.168.0.100"
 RECEIVE_BUFFER_SIZE = 65535
 PACKET_SIZE = 809  # LiDAR 패킷 크기
 
-# ✅ 최신 LiDAR 데이터 저장
+# 최신 LiDAR 데이터 저장
 latest_data = {"lidar": {0: [], 1: [], 2: [], 3: []}, "distances": {0: [], 1: [], 2: [], 3: []}}
 last_update_time = time.time()
 channel_history = deque(maxlen=10)
@@ -20,7 +20,7 @@ stop_event = threading.Event()
 sock_lidar = None
 lidar_thread = None
 
-# ✅ 패킷 조합을 위한 버퍼
+# 패킷 조합을 위한 버퍼
 buffer = bytearray()
 
 def setup_socket(port):
@@ -44,12 +44,12 @@ def parse_data(data_bytes):
         return
 
     command_high = data_bytes[4]
-    channel_id = command_high & 0x03  # ✅ 상위 바이트 마지막 2비트 (0~3)
+    channel_id = command_high & 0x03  # 상위 바이트 마지막 2비트 (0~3)
 
     if channel_id not in {0, 1, 2, 3}:
         return
 
-    data = data_bytes[7:-2]  # ✅ 첫 7바이트와 마지막 2바이트 제외
+    data = data_bytes[7:-2]  # 첫 7바이트와 마지막 2바이트 제외
     distances = [bytes_to_distance(data[i:i+2]) for i in range(0, len(data), 2)]
 
     if len(distances) < 400:
@@ -69,7 +69,7 @@ def parse_data(data_bytes):
         xyz_points.append({"x": x, "y": y, "z": z, "distance": d})
         angle += angle_step
 
-    # ✅ 데이터 저장
+    # 데이터 저장
     latest_data["lidar"][channel_id] = xyz_points
     latest_data["distances"][channel_id] = [{"angle": i * angle_step, "distance": d} for i, d in enumerate(distances[:400])]
     last_update_time = time.time()
@@ -80,7 +80,7 @@ def receive_and_process_data(sock, target_ip):
             data, addr = sock.recvfrom(RECEIVE_BUFFER_SIZE)
             
             if addr[0] != target_ip:
-                continue  # ✅ 특정 IP만 처리 
+                continue  # 특정 IP만 처리 
            
             parse_data(data)
         except Exception as e:
@@ -99,13 +99,13 @@ def find_active_ips(port, timeout=3):
         while time.time() - start_time < timeout:
             try:
                 data, addr = test_sock.recvfrom(RECEIVE_BUFFER_SIZE)
-                detected_ips.add(addr[0])  # ✅ 중복 제거됨
+                detected_ips.add(addr[0])  # 중복 제거됨
             except socket.timeout:
                 break
     finally:
         test_sock.close()
 
-    return list(detected_ips)  # ✅ 모든 활성화된 IP 반환
+    return list(detected_ips)  # 모든 활성화된 IP 반환
 
 def configure_lidar_listener(user_ip, user_port):
     """ 사용자가 입력한 IP/포트로 리스닝 시작 """
@@ -114,20 +114,20 @@ def configure_lidar_listener(user_ip, user_port):
     try:
         print(f"🔄 LiDAR 리스너 설정 변경: {user_ip}:{user_port}")
 
-        # ✅ 기존 스레드 정리
+        # 기존 스레드 정리
         stop_event.set()
         if lidar_thread and lidar_thread.is_alive():
             lidar_thread.join()
         stop_event.clear()
 
-        # ✅ 기존 소켓 닫기
+        # 기존 소켓 닫기
         if sock_lidar:
             sock_lidar.close()
 
-        # ✅ 새로운 소켓 설정
+        # 새로운 소켓 설정
         sock_lidar = setup_socket(user_port)
 
-        # ✅ 새로운 스레드 시작
+        # 새로운 스레드 시작
         lidar_thread = threading.Thread(target=receive_and_process_data, args=(sock_lidar, user_ip), daemon=True)
         lidar_thread.start()
 

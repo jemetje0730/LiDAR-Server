@@ -11,7 +11,7 @@ import socket
 
 app = FastAPI()
 
-# ✅ CORS 설정 추가
+# CORS 설정 추가
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # 모든 도메인 허용 (보안이 필요하면 특정 도메인만 허용)
@@ -20,21 +20,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ✅ XOR 체크섬
+# XOR 체크섬
 def xor_checksum(data: bytes) -> int:
     result = 0
     for b in data:
         result ^= b
     return result
 
-# ✅ 패킷 생성
+# 패킷 생성
 def make_packet(command: bytes, data: bytes) -> bytes:
     payload = b'\xfa\x06\xd0' + command + len(data).to_bytes(2, 'big') + data
     return payload + xor_checksum(payload).to_bytes(1, 'big')
 
-# ✅ ED 패킷 즉시 전송 함수 (멀티캐스트 수신 대응)
+# ED 패킷 즉시 전송 함수 (멀티캐스트 수신 대응)
 def send_existing_data_request():
-    print("✅ send_existing_data_request() 실행됨")
     ed_packet = make_packet(b'\xcf\x10', b'\xed')
 
     MULTICAST_GROUP = "224.0.0.5"
@@ -47,22 +46,20 @@ def send_existing_data_request():
         # 모든 네트워크 인터페이스에서 멀티캐스트 수신하도록 설정
         sock.bind(("0.0.0.0", UDP_PORT))  
 
-        # ✅ 멀티캐스트 그룹 가입 (224.0.0.5)
+        # 멀티캐스트 그룹 가입 (224.0.0.5)
         mreq = struct.pack("4s4s", socket.inet_aton(MULTICAST_GROUP), socket.inet_aton(LOCAL_IP))
         sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
 
-        # ✅ ED 패킷 전송 (항상 5000 포트에서 전송)
+        # ED 패킷 전송 (항상 5000 포트에서 전송)
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as send_sock:
-            send_sock.bind((LOCAL_IP, UDP_PORT))  # ✅ 송신 포트 고정
+            send_sock.bind((LOCAL_IP, UDP_PORT))  # 송신 포트 고정
             send_sock.sendto(ed_packet, ("192.168.0.200", UDP_PORT))
-            print(f"📤 ED Packet Sent from {LOCAL_IP}:{UDP_PORT} -> 192.168.0.200:{UDP_PORT}")
 
         try:
             response, _ = sock.recvfrom(2048)
-            print(f"📥 Received ED response: {response.hex()}")
             return response.hex()
         except socket.timeout:
-            print("❌ ED Response timeout")
+            print("ED Response timeout")
 
     return None
 
@@ -81,40 +78,37 @@ def send_packet(payload: bytes, expected_cmd: bytes):
         except:
             pass
 
-        # ✅ 모든 네트워크 인터페이스에서 수신 가능하도록 바인딩
+        # 모든 네트워크 인터페이스에서 수신 가능하도록 바인딩
         sock.bind(("0.0.0.0", UDP_PORT))
 
-        # ✅ 멀티캐스트 그룹 가입
+        # 멀티캐스트 그룹 가입
         mreq = struct.pack("4s4s", socket.inet_aton(MULTICAST_GROUP), socket.inet_aton(LOCAL_IP))
         sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
 
-        # ✅ 패킷 전송 (항상 5000 포트에서 전송)
+        # 패킷 전송 (항상 5000 포트에서 전송)
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as send_sock:
-            send_sock.bind((LOCAL_IP, UDP_PORT))  # ✅ 송신 포트 고정
+            send_sock.bind((LOCAL_IP, UDP_PORT))  # 송신 포트 고정
             send_sock.sendto(payload, ("192.168.0.200", UDP_PORT))
-            print(f"📤 Packet Sent from {LOCAL_IP}:{UDP_PORT} -> 192.168.0.200:{UDP_PORT}")
 
         try:
             response, _ = sock.recvfrom(2048)
-            print(f"📥 Received response: {response.hex()}")
 
             if len(response) >= 7 and response[3:5] == expected_cmd:
-                print("✅ Command executed successfully!")
                 return {"message": "Success", "sent": payload.hex(), "received": response.hex()}
             else:
                 return {"error": "Unexpected response", "received": response.hex()}
         except socket.timeout:
-            print("❌ Response timeout")
+            print(" Response timeout")
             return {"error": "Response timeout"}
 
 
 class ChannelRequest(BaseModel):
     output_channel: int
 
-# ✅ WebSocket 연결을 관리할 리스트
+# WebSocket 연결을 관리할 리스트
 active_connections = set()
 
-# ✅ 요청 데이터 모델
+# 요청 데이터 모델
 class LidarConfig(BaseModel):
     ip: str
     port: int
@@ -129,14 +123,14 @@ def connect_device(config: LidarConfig):
     active_ips = listener.find_active_ips(config.port)
 
     if config.ip not in active_ips:
-        return {"success": False, "message": "❌ 입력한 IP가 활성화되지 않음"}
+        return {"success": False, "message": " 입력한 IP가 활성화되지 않음"}
 
-    # ✅ 선택된 IP에 대해 LiDAR 리스너 실행
+    # 선택된 IP에 대해 LiDAR 리스너 실행
     success = listener.configure_lidar_listener(config.ip, config.port)
     if not success:
-        return {"success": False, "message": "❌ LiDAR 리스너 실행 실패"}
+        return {"success": False, "message": " LiDAR 리스너 실행 실패"}
 
-    return {"success": True, "message": f"✅ LiDAR 리스너 실행 완료: {config.ip}:{config.port}"}
+    return {"success": True, "message": f" LiDAR 리스너 실행 완료: {config.ip}:{config.port}"}
 
 @app.post("/set_output_channel")
 def set_output_channel(req: ChannelRequest):
@@ -207,7 +201,6 @@ def set_angle_data(req: AngleDataRequest):
 @app.websocket("/ws/lidar")
 async def websocket_lidar(websocket: WebSocket):
     await websocket.accept()
-    print("✅ WebSocket 클라이언트 연결됨")
 
     try:
         while True:
@@ -217,9 +210,9 @@ async def websocket_lidar(websocket: WebSocket):
                 "distances": lidar_data.get("distances", {})
             }
             await websocket.send_json(response)
-            await asyncio.sleep(0.1)  # ✅ 실시간 갱신 속도 조절
+            await asyncio.sleep(0.1)  # 실시간 갱신 속도 조절
     except WebSocketDisconnect:
-        print("❌ WebSocket 클라이언트 연결 종료됨")
+        print(" WebSocket 클라이언트 연결 종료됨")
 
 @app.get("/lidar_data")
 def get_lidar_data():
@@ -228,17 +221,17 @@ def get_lidar_data():
 
     if lidar_data:
         formatted_data = []
-        for channel, points in lidar_data.items():  # ✅ 모든 채널 데이터 가져오기
+        for channel, points in lidar_data.items():  # 모든 채널 데이터 가져오기
             for p in points:
                 formatted_data.append({
-                    "channel": channel,  # ✅ 채널 번호 추가
+                    "channel": channel,  # 채널 번호 추가
                     "x": p["x"],
                     "y": p["y"],
                     "z": p["z"],
                     "distance": p["distance"]
                 })
 
-        return {"latest_lidar_xyz_points": formatted_data}  # ✅ 모든 데이터 반환
+        return {"latest_lidar_xyz_points": formatted_data}  
 
     return {"message": "No data available"}
 
@@ -249,14 +242,14 @@ def get_lidar_config():
     lidar_data = listener.latest_data.get("lidar", {})
 
     if not lidar_data:  # 🚨 데이터가 없으면 404 방지
-        print("❌ [Error] No LiDAR data available in listener.py")
+        print(" [Error] No LiDAR data available in listener.py")
         raise HTTPException(status_code=404, detail="No LiDAR data available")
 
-    print(f"✅ [Success] LiDAR config returned: {lidar_data}")  # 🚀 성공 로그 추가
-    return lidar_data  # ✅ 바로 반환 (이미 hex 변환된 데이터)
+    print(f" [Success] LiDAR config returned: {lidar_data}")  
+    return lidar_data  # 바로 반환 (이미 hex 변환된 데이터)
 
 def run_server():
-    print("✅ 서버 실행 중...")
+    print(" 서버 실행 중...")
     uvicorn.run(app, host="0.0.0.0", port=8000)
 
 if __name__ == "__main__":
