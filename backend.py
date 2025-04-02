@@ -156,9 +156,36 @@ class DistanceRangeRequest(BaseModel):
 
 @app.post("/set_distance_range")
 def set_distance_range(req: DistanceRangeRequest):
+    # 유효성 검사 (거리 범위는 0~50m 사이여야 함)
     if not (0 <= req.min_distance <= 50 and 0 <= req.max_distance <= 50):
         raise HTTPException(status_code=400, detail="Distance range must be between 0 and 50 meters")
-    response = send_packet(make_packet(b'\xcf\x80', req.min_distance.to_bytes(1, 'big') + req.max_distance.to_bytes(1, 'big')), b'\xcf\x81')
+    
+    # max_distance는 min_distance보다 커야 한다는 조건 추가
+    if req.min_distance > req.max_distance:
+        raise HTTPException(status_code=400, detail="max_distance must be greater than or equal to min_distance")
+
+    # 패킷 데이터 형식
+    fixed_header = b'\xfa\x06\xd0'  # 고정 헤더
+    command = b'\xcf\x80'  # 거리 범위 설정 명령
+    data_length = b'\x00\x02'  # 데이터 길이 (2바이트: min_distance, max_distance)
+    
+    # 거리 값을 2바이트로 변환
+    min_distance_bytes = req.min_distance.to_bytes(2, 'big')
+    max_distance_bytes = req.max_distance.to_bytes(2, 'big')
+    
+    # 패킷 구성
+    payload = fixed_header + command + data_length + min_distance_bytes + max_distance_bytes
+    
+    # 체크섬 계산
+    checksum = xor_checksum(payload)
+    
+    # 최종 패킷에 체크섬 추가
+    packet = payload + checksum.to_bytes(1, 'big')
+    
+    # 패킷 전송
+    response = send_packet(packet, b'\xcf\x81')  # 예상되는 응답 명령은 cf81
+    
+    # 기존 데이터 요청 전송 (기기에서 최신 데이터 받기)
     send_existing_data_request()
     return response
 
@@ -194,9 +221,30 @@ def set_angle_data(req: AngleDataRequest):
         raise HTTPException(status_code=400, detail="Angles must be in range [0, 100]")
     if req.min_angle > req.max_angle:
         raise HTTPException(status_code=400, detail="Min Angle must be less than or equal to Max Angle")
-    response = send_packet(make_packet(b'\xcf\x80', req.min_angle.to_bytes(1, 'big') + req.max_angle.to_bytes(1, 'big')), b'\xcf\x81')
-    send_existing_data_request()
-    return response
+
+    # Prepare the data as per the structure fa/06/d0/cf20/0004/0000/0064/a3
+    fixed_header = b'\xfa\x06\xd0'  # Fixed header
+    command = b'\xcf\x20'  # Angle set command
+    data_length = b'\x00\x04'  # Data length (4 bytes)
+    
+    min_angle_bytes = req.min_angle.to_bytes(2, 'big')  # Convert min_angle to bytes (2 bytes)
+    max_angle_bytes = req.max_angle.to_bytes(2, 'big')  # Convert max_angle to bytes (2 bytes)
+    
+    payload = fixed_header + command + data_length + min_angle_bytes + max_angle_bytes
+    
+    # Calculate XOR checksum
+    checksum = xor_checksum(payload)
+    
+    # Final packet with checksum
+    packet = payload + checksum.to_bytes(1, 'big')
+    
+    # Send the packet
+    response = send_packet(packet, b'\xcf\x21')  # Expected response command is cf21
+    
+    send_existing_data_request()  # Send an existing data request to the device
+
+    return {"status": "success", "sent_packet": packet.hex()}
+
 
 @app.websocket("/ws/lidar")
 async def websocket_lidar(websocket: WebSocket):
