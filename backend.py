@@ -170,8 +170,8 @@ def set_distance_range(req: DistanceRangeRequest):
     data_length = b'\x00\x02'  # 데이터 길이 (2바이트: min_distance, max_distance)
     
     # 거리 값을 2바이트로 변환
-    min_distance_bytes = req.min_distance.to_bytes(2, 'big')
-    max_distance_bytes = req.max_distance.to_bytes(2, 'big')
+    min_distance_bytes = req.min_distance.to_bytes(1, 'big')
+    max_distance_bytes = req.max_distance.to_bytes(1, 'big')
     
     # 패킷 구성
     payload = fixed_header + command + data_length + min_distance_bytes + max_distance_bytes
