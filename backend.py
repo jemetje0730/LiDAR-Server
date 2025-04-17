@@ -52,7 +52,6 @@ def send_existing_data_request():
 
         # ED 패킷 전송 (항상 5000 포트에서 전송)
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as send_sock:
-            send_sock.bind((LOCAL_IP, UDP_PORT))  # 송신 포트 고정
             send_sock.sendto(ed_packet, ("192.168.0.200", UDP_PORT))
 
         try:
@@ -87,7 +86,6 @@ def send_packet(payload: bytes, expected_cmd: bytes):
 
         # 패킷 전송 (항상 5000 포트에서 전송)
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as send_sock:
-            send_sock.bind((LOCAL_IP, UDP_PORT))  # 송신 포트 고정
             send_sock.sendto(payload, ("192.168.0.200", UDP_PORT))
 
         try:
@@ -245,7 +243,6 @@ def set_angle_data(req: AngleDataRequest):
 
     return {"status": "success", "sent_packet": packet.hex()}
 
-
 @app.websocket("/ws/lidar")
 async def websocket_lidar(websocket: WebSocket):
     await websocket.accept()
@@ -277,6 +274,7 @@ async def websocket_lidar(websocket: WebSocket):
             await asyncio.sleep(0.1)  # 실시간 갱신 속도 조절
     except WebSocketDisconnect:
         print(" WebSocket 클라이언트 연결 종료됨")
+
 
 
 @app.get("/lidar_data")
