@@ -253,14 +253,31 @@ async def websocket_lidar(websocket: WebSocket):
     try:
         while True:
             lidar_data = listener.get_latest_data()
+            lidar_points = lidar_data.get("lidar", {})
+            distances = lidar_data.get("distances", {})
+
+            # ✅ area_1~area_5 감지 정보 추출
+            area_detection = {"area_1": 0, "area_2": 0, "area_3": 0, "area_4": 0, "area_5": 0}
+            for channel in lidar_points.values():
+                if channel and isinstance(channel, list):
+                    # 첫 포인트 기준으로 area 정보 추출
+                    point = channel[0]
+                    if "areas" in point:
+                        area_detection = point["areas"]
+                    break  # 한 채널만 검사해도 됨
+
+            # ✅ 감지 정보 포함해서 프론트에 전송
             response = {
-                "lidar_data": lidar_data.get("lidar", {}),
-                "distances": lidar_data.get("distances", {})
+                "lidar_data": lidar_points,
+                "distances": distances,
+                "area_detection": area_detection  # 👈 이거 추가!
             }
+
             await websocket.send_json(response)
             await asyncio.sleep(0.1)  # 실시간 갱신 속도 조절
     except WebSocketDisconnect:
         print(" WebSocket 클라이언트 연결 종료됨")
+
 
 @app.get("/lidar_data")
 def get_lidar_data():

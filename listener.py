@@ -44,12 +44,13 @@ def parse_data(data_bytes):
         return
 
     command_high = data_bytes[4]
-    channel_id = command_high & 0x03  # 상위 바이트 마지막 2비트 (0~3)
+    channel_id = command_high & 0x03
 
     if channel_id not in {0, 1, 2, 3}:
         return
 
-    data = data_bytes[7:-2]  # 첫 7바이트와 마지막 2바이트 제외
+    detected_flag = data_bytes[-2]
+    data = data_bytes[7:-2]
     distances = [bytes_to_distance(data[i:i+2]) for i in range(0, len(data), 2)]
 
     if len(distances) < 400:
@@ -60,19 +61,30 @@ def parse_data(data_bytes):
     angle_step = 0.25
     vertical_radian = math.radians(VERTICAL_ANGLES[channel_id])
 
+    # 감지 영역 비트 파싱 (bit 3~7까지)
+    area_detect_flags = {
+        f"area_{i+1}": (detected_flag >> (i + 3)) & 1 for i in range(5)  # area_1 ~ area_5
+    }
+
     for d in distances[:400]:
         radian = math.radians(angle)
         x = d * math.cos(radian) * math.cos(vertical_radian)
         y = d * math.sin(radian) * math.cos(vertical_radian)
         z = d * math.sin(vertical_radian)
 
-        xyz_points.append({"x": x, "y": y, "z": z, "distance": d})
+        xyz_points.append({
+            "x": x,
+            "y": y,
+            "z": z,
+            "distance": d,
+            "areas": area_detect_flags  # 감지된 영역 정보 통째로 추가
+        })
         angle += angle_step
 
-    # 데이터 저장
     latest_data["lidar"][channel_id] = xyz_points
     latest_data["distances"][channel_id] = [{"angle": i * angle_step, "distance": d} for i, d in enumerate(distances[:400])]
     last_update_time = time.time()
+
 
 def receive_and_process_data(sock, target_ip):
     while not stop_event.is_set():
